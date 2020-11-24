@@ -33,6 +33,7 @@ import org.apache.hadoop.hbase.master.procedure.MasterProcedureEnv;
 import org.apache.hadoop.hbase.master.procedure.MasterProcedureTestingUtility;
 import org.apache.hadoop.hbase.procedure2.ProcedureExecutor;
 import org.apache.hadoop.hbase.procedure2.ProcedureTestingUtility;
+import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.testclassification.MasterTests;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -62,7 +63,7 @@ public class TestRegionSplit {
 
   private static String ColumnFamilyName = "cf";
 
-  private static final int startRowNum = 11;
+  private static int startRowNum = 11;
   private static final int rowCount = 60;
 
   @Rule
@@ -148,6 +149,38 @@ public class TestRegionSplit {
 
     assertEquals("Table region not correct.", 2,
         UTIL.getHBaseCluster().getRegions(tableName).size());
+  }
+
+  @Test
+  public void testSplitStoreFiles() throws Exception {
+    final TableName tableName = TableName.valueOf(name.getMethodName());
+    final ProcedureExecutor<MasterProcedureEnv> procExec = getMasterProcedureExecutor();
+
+    RegionInfo[] regions =
+      MasterProcedureTestingUtility.createTable(procExec, tableName, null, ColumnFamilyName);
+    startRowNum = 11;
+    insertData(tableName);
+    startRowNum = 22;
+    insertData(tableName);
+
+    byte[] splitKey = Bytes.toBytes("" + startRowNum);
+
+    assertTrue("not able to find a splittable region", regions != null);
+    assertTrue("not able to find a splittable region", regions.length == 1);
+
+    // Split region of the table
+    long procId = procExec.submitProcedure(
+      new SplitTableRegionProcedure(procExec.getEnvironment(), regions[0], splitKey));
+    // Wait the completion
+    ProcedureTestingUtility.waitProcedure(procExec, procId);
+    ProcedureTestingUtility.assertProcNotFailed(procExec, procId);
+
+    assertTrue("not able to split table", UTIL.getHBaseCluster().getRegions(tableName).size() == 2);
+
+    for(HRegion region : UTIL.getHBaseCluster().getRegions(tableName)){
+      LOG.info("Region is {}", region.getRegionInfo());
+      assertEquals(1, region.getStore(Bytes.toBytes(ColumnFamilyName)).getStorefiles().size());
+    }
   }
 
   private void insertData(final TableName tableName) throws IOException {
