@@ -776,6 +776,24 @@
           <groupId>org.xolstice.maven.plugins</groupId>
           <artifactId>protobuf-maven-plugin</artifactId>
           <version>${protobuf.plugin.version}</version>
+          <dependencies>
+            <dependency>
+              <groupId>org.codehaus.plexus</groupId>
+              <artifactId>plexus-utils</artifactId>
+              <version>${codehaus.plexus.util.version}</version>
+            </dependency>
+            <dependency>
+              <groupId>org.sonatype.plexus</groupId>
+              <artifactId>plexus-build-api</artifactId>
+              <version>${sonatype.plexus.version}</version>
+              <exclusions>
+                <exclusion>
+                  <groupId>org.codehaus.plexus</groupId>
+                  <artifactId>plexus-utils</artifactId>
+                </exclusion>
+              </exclusions>
+            </dependency>
+          </dependencies>
           <configuration>
             <protocArtifact>com.google.protobuf:protoc:${external.protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
             <protoSourceRoot>${basedir}/src/main/protobuf/</protoSourceRoot>
@@ -1458,6 +1476,8 @@
     <!--Internally we use a different version of protobuf. See hbase-protocol-shaded-->
     <external.protobuf.version>2.5.0</external.protobuf.version>
     <protobuf.plugin.version>0.6.1</protobuf.plugin.version>
+    <codehaus.plexus.util.version>3.1.0</codehaus.plexus.util.version>
+    <sonatype.plexus.version>0.0.7</sonatype.plexus.version>
     <thrift.path>thrift</thrift.path>
     <thrift.version>0.13.0</thrift.version>
     <zookeeper.version>3.5.7</zookeeper.version>
