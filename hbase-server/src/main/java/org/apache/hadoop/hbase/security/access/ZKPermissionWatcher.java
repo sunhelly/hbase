@@ -129,6 +129,7 @@ public class ZKPermissionWatcher extends ZKListener implements Closeable {
           try {
             List<ZKUtil.NodeAndData> nodes =
                 ZKUtil.getChildDataAndWatchForNewChildren(watcher, aclZNode);
+            LOG.info("node created should not happen...");
             refreshNodes(nodes);
           } catch (KeeperException ke) {
             LOG.error("Error reading data from zookeeper", ke);

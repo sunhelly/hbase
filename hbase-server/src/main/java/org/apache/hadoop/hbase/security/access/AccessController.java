@@ -251,6 +251,7 @@ public class AccessController implements MasterCoprocessor, RegionCoprocessor,
     Map<byte[], ListMultimap<String, UserPermission>> tables = PermissionStorage.loadAll(region);
     // For each table, write out the table's permissions to the respective
     // znode for that table.
+    LOG.info("permission size is:"+tables.size());
     for (Map.Entry<byte[], ListMultimap<String, UserPermission>> t:
       tables.entrySet()) {
       byte[] entry = t.getKey();
