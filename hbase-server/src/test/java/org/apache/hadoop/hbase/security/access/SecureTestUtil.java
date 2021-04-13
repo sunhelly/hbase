@@ -301,6 +301,31 @@ public class SecureTestUtil {
     return result;
   }
 
+  private static void waitUntilAuthTableDoNotChange(final HBaseTestingUtility util) throws
+    Exception {
+    // Get the current mtimes for all access controllers
+    Map<AccessController,Long> oldMTimes = getAuthManagerMTimes(util.getHBaseCluster());
+
+    // Wait until mtimes for all access controllers have incremented
+    util.waitFor(WAIT_TIME, 100, new Predicate<IOException>() {
+      @Override
+      public boolean evaluate() throws IOException {
+        Map<AccessController,Long> mtimes = getAuthManagerMTimes(util.getHBaseCluster());
+        for (Map.Entry<AccessController,Long> e: mtimes.entrySet()) {
+          if (!oldMTimes.containsKey(e.getKey())) {
+            LOG.error("Snapshot of AccessController state does not include instance on region " +
+              e.getKey().getRegion().getRegionInfo().getRegionNameAsString());
+            // Error out the predicate, we will try again
+            oldMTimes = mtimes;
+            break;
+            return false;
+          }
+        }
+        return true;
+      }
+    });
+  }
+
   @SuppressWarnings("rawtypes")
   private static void updateACLs(final HBaseTestingUtility util, Callable c) throws Exception {
     // Get the current mtimes for all access controllers
