@@ -52,6 +52,7 @@ import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
+import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.RegionInfo;
 import org.apache.hadoop.hbase.client.RegionInfoBuilder;
 import org.apache.hadoop.hbase.client.TableDescriptor;
@@ -60,6 +61,7 @@ import org.apache.hadoop.hbase.codec.Codec;
 import org.apache.hadoop.hbase.coprocessor.CoprocessorHost;
 import org.apache.hadoop.hbase.coprocessor.SampleRegionWALCoprocessor;
 import org.apache.hadoop.hbase.regionserver.MultiVersionConcurrencyControl;
+import org.apache.hadoop.hbase.regionserver.wal.AsyncFSWAL;
 import org.apache.hadoop.hbase.regionserver.wal.CompressionContext;
 import org.apache.hadoop.hbase.regionserver.wal.WALActionsListener;
 import org.apache.hadoop.hbase.regionserver.wal.WALCellCodec;
@@ -561,6 +563,38 @@ public class TestWALFactory {
         reader.close();
       }
     }
+  }
+
+  @Test
+  public void testRolledShutdown() throws IOException {
+    int colCount = 10;
+    TableDescriptor htd =
+      TableDescriptorBuilder.newBuilder(TableName.valueOf(currentTest.getMethodName()))
+        .setColumnFamily(ColumnFamilyDescriptorBuilder.of("column"))
+        .setDurability(Durability.ASYNC_WAL).build();
+    NavigableMap<byte[], Integer> scopes = new TreeMap<byte[], Integer>(Bytes.BYTES_COMPARATOR);
+    for (byte[] fam : htd.getColumnFamilyNames()) {
+      scopes.put(fam, 0);
+    }
+    byte[] row = Bytes.toBytes("row");
+    final MultiVersionConcurrencyControl mvcc = new MultiVersionConcurrencyControl(1);
+
+      // Write columns named 1, 2, 3, etc. and then values of single byte
+      // 1, 2, 3...
+      long timestamp = System.currentTimeMillis();
+      WALEdit cols = new WALEdit();
+      for (int i = 0; i < colCount; i++) {
+        cols.add(new KeyValue(row, Bytes.toBytes("column"),
+          Bytes.toBytes(Integer.toString(i)),
+          timestamp, new byte[] { (byte)(i + '0') }));
+      }
+      RegionInfo hri = RegionInfoBuilder.newBuilder(htd.getTableName()).build();
+      final AsyncFSWAL log = (AsyncFSWAL)wals.getWAL(hri);
+      log.rollWriter(true);
+      final long txid = log.appendData(hri, new WALKeyImpl(hri.getEncodedNameAsBytes(),
+        htd.getTableName(), System.currentTimeMillis(), mvcc, scopes), cols);
+      //let synwriter timeout
+      log.shutdown();
   }
 
   @Test

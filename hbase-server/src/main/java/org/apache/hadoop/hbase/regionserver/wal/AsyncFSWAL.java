@@ -639,6 +639,11 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
     return consumerScheduled.compareAndSet(false, true);
   }
 
+  // for test
+  public void disableScheduleConsumer(){
+    consumerScheduled.set(false);
+  }
+
   // This is used by sync replication, where we are going to close the wal soon after we reopen all
   // the regions. Will be overridden by sub classes.
   protected boolean markerEditOnly() {

@@ -17,6 +17,7 @@
  */
 package org.apache.hadoop.hbase.executor;
 
+import static org.apache.hadoop.hbase.util.Threads.sleep;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyObject;
@@ -29,10 +30,14 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseClassTestRule;
 import org.apache.hadoop.hbase.HBaseConfiguration;
@@ -44,6 +49,7 @@ import org.apache.hadoop.hbase.executor.ExecutorService.ExecutorConfig;
 import org.apache.hadoop.hbase.executor.ExecutorService.ExecutorStatus;
 import org.apache.hadoop.hbase.testclassification.MiscTests;
 import org.apache.hadoop.hbase.testclassification.SmallTests;
+import org.apache.hbase.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -259,5 +265,67 @@ public class TestExecutorService {
       return count == 0;
     });
   }
+
+  @Test
+  public void testHHH() {
+    ThreadPoolExecutor threadPool =
+      new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>(),
+        new ThreadFactoryBuilder().setNameFormat("AsyncFSWAL-%d").setDaemon(true).build());
+    Lock lock = new ReentrantLock();
+    final Condition readyForRollingCond = lock.newCondition();
+    int epochAndState;
+    final boolean[] readyForRolling = { false };
+    new Thread(){
+      @Override
+      public void run(){
+        try {
+          sleep(1000000000);
+        } catch (InterruptedException e) {
+          e.printStackTrace();
+        }
+      }
+    }.start();
+    sleep(3000);
+    new Thread(){
+      @Override
+      public void run(){
+        lock.lock();
+        try{
+          threadPool.execute(new Runnable() {
+            @Override public void run() {
+              lock.lock();
+              try{
+                System.out.println("hahahhah");
+                try {
+                  sleep(500);
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+//                readyForRolling[0] =true;
+//                readyForRollingCond.signalAll();
+              }finally {
+                lock.unlock();
+              }
+            }
+          });
+          System.out.println("NBBBBBBB1");
+          while(!readyForRolling[0]) {
+            System.out.println("mmmmmm");
+            readyForRollingCond.awaitUninterruptibly();
+          }
+          System.out.println("NBBBBBBB");
+        }finally {
+          lock.unlock();
+        }
+      }
+    }.start();
+
+
+  }
+
+
 }
+
+
+
 

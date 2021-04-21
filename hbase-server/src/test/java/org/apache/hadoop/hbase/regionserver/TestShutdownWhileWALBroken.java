@@ -73,7 +73,8 @@ public class TestShutdownWhileWALBroken {
 
   @Parameters(name = "{index}: WAL={0}")
   public static List<Object[]> params() {
-    return Arrays.asList(new Object[] { "asyncfs" }, new Object[] { "filesystem" });
+    return Arrays.asList(new Object[] {"multiwal"}, new Object[] { "asyncfs" },
+      new Object[] { "filesystem" });
   }
 
   public static final class MyRegionServer extends HRegionServer {

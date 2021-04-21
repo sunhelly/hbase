@@ -79,6 +79,7 @@ public class TestSyncReplicationStandbyKillRS extends SyncReplicationTestBase {
           JVMClusterUtil.RegionServerThread restarted =
               UTIL2.getMiniHBaseCluster().startRegionServer();
           restarted.waitForServerOnline();
+          break;
         }
       } catch (Exception e) {
         LOG.error("Failed to kill RS", e);
