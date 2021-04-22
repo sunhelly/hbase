@@ -384,6 +384,7 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
     highestProcessedAppendTxidAtLastSync = currentHighestProcessedAppendTxid;
     final long startTimeNs = System.nanoTime();
     final long epoch = (long) epochAndState >>> 2L;
+    LOG.info("sync writer, fileLength=" + fileLengthAtLastSync);
     addListener(writer.sync(shouldUseHsync), (result, error) -> {
       if (error != null) {
         syncFailed(epoch, error);
@@ -558,13 +559,17 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
     try {
       int currentEpochAndState = epochAndState;
       if (writerBroken(currentEpochAndState)) {
+        LOG.info("consume, writer is broken...");
         return;
       }
       if (waitingRoll(currentEpochAndState)) {
+        LOG.info("consume, waiting roll...");
         if (writer.getLength() > fileLengthAtLastSync) {
+          LOG.info("consume, sync writer...");
           // issue a sync
           sync(writer);
         } else {
+          LOG.info("consume, unackedAppends is empty=" + unackedAppends.isEmpty());
           if (unackedAppends.isEmpty()) {
             readyForRolling = true;
             readyForRollingCond.signalAll();
@@ -723,9 +728,11 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
 
   private void waitForSafePoint() {
     consumeLock.lock();
+    LOG.info("wait for safe point...");
     try {
       int currentEpochAndState = epochAndState;
       if (writerBroken(currentEpochAndState) || this.writer == null) {
+        LOG.debug("write broken=" + writerBroken(currentEpochAndState));
         return;
       }
       consumerScheduled.set(true);
@@ -733,6 +740,7 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
       readyForRolling = false;
       consumeExecutor.execute(consumer);
       while (!readyForRolling) {
+        LOG.info("await Uninterruptibly...");
         readyForRollingCond.awaitUninterruptibly();
       }
     } finally {

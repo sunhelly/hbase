@@ -156,6 +156,7 @@ public abstract class AbstractFSWALProvider<T extends AbstractFSWAL<?>> implemen
       if (walCopy != null) {
         return walCopy;
       }
+      System.out.println("create WAL for region " + region);
       walCopy = createWAL();
       boolean succ = false;
       try {
