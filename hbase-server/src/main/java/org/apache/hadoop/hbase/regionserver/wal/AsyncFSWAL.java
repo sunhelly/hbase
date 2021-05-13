@@ -181,7 +181,7 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
 
   private final long batchSize;
 
-  private final ExecutorService closeExecutor = Executors.newCachedThreadPool(
+  private final ExecutorService closeExecutor = Executors.newSingleThreadExecutor(
     new ThreadFactoryBuilder().setDaemon(true).setNameFormat("Close-WAL-Writer-%d").build());
 
   private volatile AsyncFSOutput fsOut;
@@ -758,7 +758,7 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
 
   @Override
   protected void doShutdown() throws IOException {
-    waitForSafePoint();
+    closeExecutor.execute(this::waitForSafePoint);
     closeWriter(this.writer);
     this.writer = null;
     closeExecutor.shutdown();
